@@ -10,6 +10,9 @@
 #include "CAN.h"
 
 #include <Adafruit_NeoPixel.h>
+#include "MPU9250.h"
+
+MPU9250 mpu;
 
 #define PIN 17 // For microBUS 1
 // #define PIN 13 // For microBUS 2
@@ -17,11 +20,10 @@
 
 Adafruit_NeoPixel LEDs(NUM_PIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-// 1 for left side, 2 for right side
-int player = 2;
+boolean activate_manual_mode = false;
 
-// TODO: Geile animation machen
-// TODO: "fiesigkeit" einbauen, mit den winkeln die bälle in die ecken drängen
+// 1 for left side, 2 for right side
+int player = 1;
 
 int a = 1;
 
@@ -32,9 +34,9 @@ int16_t previous_y = 65;
 int gamestand_1 = 0;
 int gamestand_2 = 0;
 
-void onReceive(int packageSize);
+void onReceive(int packetSize);
 
-void draw(int number, int offset_x, int offset_y);
+void draw(int number, int offset_x, int offset_y, int color_chooser);
 
 
 void draw_lose(int offset_x, int offset_y);
@@ -43,6 +45,9 @@ void draw_victory(int offset_x, int offset_y);
 void setup() {
     Serial.begin(9600);
     //while (!Serial) delay(10);
+
+    Wire.begin();
+    mpu.setup(0x68);
 
     Serial.println("CAN Receiver Callback");
     a = 2;
@@ -76,12 +81,15 @@ boolean color_switcher = true;
 
 int won = 0;
 
+
 void loop() {
+
+
     delay(100);
     if(won == 0)
     {
-        draw(gamestand_1, 2, 7);
-        draw(gamestand_2, 2, 0);
+        draw(gamestand_1, 2, 7, 1);
+        draw(gamestand_2, 2, 0, 2);
         if(color_switcher)
         {
             LEDs.setPixelColor(4 + 40, LEDs.Color(255, 255, 255));
@@ -283,7 +291,7 @@ void onReceive(int packetSize) {
     }
 
     // change to updateValue
-    CAN.write(1);
+    CAN.write(updateValue);
     CAN.endPacket();
 
     previous_x = x;
@@ -292,9 +300,17 @@ void onReceive(int packetSize) {
 }
 
 
-void draw(int number, int offset_x, int offset_y)
+void draw(int number, int offset_x, int offset_y, int color_chooser)
 {
-    auto color = LEDs.Color(255, 255, 255);
+
+    uint32_t color;
+    if(color_chooser == 1)
+    {
+        color = LEDs.Color(0, 255, 0);
+    } else
+    {
+        color = LEDs.Color(255, 0, 0);
+    }
     if(number == 0)
     {
         LEDs.setPixelColor(1 + offset_x + 10 * offset_y, color);
@@ -505,3 +521,4 @@ void draw_lose(int offset_x, int offset_y)
     LEDs.setPixelColor(96 + offset_x + 10 * offset_y, color1);
     LEDs.show();
 }
+
